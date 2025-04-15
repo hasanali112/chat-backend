@@ -7,10 +7,14 @@ import {
   validateRequestCookies,
 } from '../../middleware/validateRequest';
 import { AuthValidation } from './auth.validation';
+import { multerUpload } from '../../config/multer.config';
 
 const router = Router();
 
-router.post('/signup', AuthController.signUpUser);
+router.post('/signup', multerUpload.single('image'), (req, res, next) => {
+  req.body = JSON.parse(req.body.data);
+  return AuthController.signUpUser(req, res, next);
+});
 
 router.post('/login', AuthController.loginUser);
 

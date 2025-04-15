@@ -6,26 +6,57 @@ import * as bcrypt from 'bcrypt';
 import { jwtHelpers } from '../../utils/JWTHelpers';
 import { config } from '../../config';
 import { JwtPayload, Secret } from 'jsonwebtoken';
-import { v4 as uuidv4 } from 'uuid';
-import { TUser } from '../User/user.interface';
+import { Request } from 'express';
 
-const signUp = async (payload: TUser) => {
-  const user = await User.findOne({ email: payload.email });
-  if (user) {
+const signUp = async (req: Request) => {
+  const payload = req.body;
+  const file = req.file;
+
+  if (file) {
+    payload.profileImg = file.path;
+  }
+
+  const isUserExist = await User.findOne({ email: payload.email });
+  if (isUserExist) {
     throw new AppError(httpStatus.NOT_FOUND, 'You already have an account');
   }
 
-  // Extract portion of the email before '@'
-  const emailPrefix = payload.email.split('@')[0];
+  const user = await User.create(payload);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
 
-  // Generate a short UUID (first 6 characters for uniqueness)
-  const shortUuid = uuidv4().slice(0, 6);
+  if (user.isDeleted) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'user is deleted');
+  }
 
-  // Generate username using email prefix + UUID
-  payload.userName = `${emailPrefix}_${shortUuid}`;
+  const comparePassword = await bcrypt.compare(payload.password, user.password);
+  if (!comparePassword) {
+    throw new AppError(httpStatus.UNAUTHORIZED, 'Password does not match');
+  }
 
-  const newUser = await User.create(payload);
-  return newUser;
+  const JwtPayload = {
+    id: user._id,
+    email: user.email,
+    userName: user.userName,
+    profileImg: user?.profileImg,
+  };
+
+  const accessToken = jwtHelpers.generateToken(
+    JwtPayload,
+    config.jwt_access_secret as Secret,
+    config.jwt_access_expire_in as string,
+  );
+  const refreshToken = jwtHelpers.generateToken(
+    JwtPayload,
+    config.jwt_refresh_secret as Secret,
+    config.jwt_refresh_expire_in as string,
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+  };
 };
 
 const login = async (payload: TAuth) => {
@@ -47,8 +78,6 @@ const login = async (payload: TAuth) => {
     id: user._id,
     email: user.email,
     userName: user.userName,
-    contact: user.contact,
-    role: user.role,
     profileImg: user?.profileImg,
   };
 
@@ -144,8 +173,6 @@ const refreshToken = async (token: string) => {
     id: user._id,
     email: user.email,
     userName: user.userName,
-    contact: user.contact,
-    role: user.role,
     profileImg: user?.profileImg,
   };
 

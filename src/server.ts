@@ -1,27 +1,28 @@
-/* eslint-disable no-console */
+import { Server } from 'http';
 import mongoose from 'mongoose';
 import { config } from './app/config';
-import { httpServer, io } from './app'; // Modified import
-import { seedingSuperAdmin } from './app/DB';
+import app from './app';
 
+let server: Server;
 async function main() {
-  try {
-    await mongoose.connect(config.database_url as string);
-    await seedingSuperAdmin();
-
-    httpServer.listen(config.port, () => {
-      console.log(`Server listening on port ${config.port}`);
-      console.log(`Socket.IO ready at ws://localhost:${config.port}`);
-    });
-
-    // Socket.IO connection test
-    io.on('connection', (socket) => {
-      console.log('Socket.IO connection established:', socket.id);
-    });
-  } catch (err) {
-    console.error('Failed to start server:', err);
-    process.exit(1);
-  }
+  await mongoose.connect(config.database_url as string);
+  server = app.listen(config.port, () => {
+    console.log(`Server listening on port ${config.port}`);
+  });
 }
+
+process.on('uncaughtException', (err) => {
+  console.log(err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.log(err);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  }
+});
 
 main();

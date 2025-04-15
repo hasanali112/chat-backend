@@ -1,12 +1,11 @@
 import { Schema, model } from 'mongoose';
 import { TUser, UserModel } from './user.interface';
-import { USER_ROLE } from './user.constant';
 import bcrypt from 'bcrypt';
 import { config } from '../../config';
 
 const userSchema = new Schema<TUser, UserModel>(
   {
-    name: {
+    fullName: {
       type: String,
       required: true,
     },
@@ -24,23 +23,6 @@ const userSchema = new Schema<TUser, UserModel>(
     password: {
       type: String,
       required: true,
-    },
-    gender: {
-      type: String,
-      enum: ['MALE', 'FEMALE'],
-      required: true,
-    },
-    role: {
-      type: String,
-      enum: Object.values(USER_ROLE),
-      required: true,
-    },
-    contact: {
-      type: String,
-      required: true,
-    },
-    address: {
-      type: String,
     },
     profileImg: {
       type: String,
